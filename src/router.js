@@ -56,7 +56,7 @@ router.afterEach((to) => {
   }
   
   // 3. 合成最终标题
-  document.title = pageTitle ? `${pageTitle} | ${siteName}` : siteName;
+  document.title = pageTitle ? `${pageTitle} - ${siteName}` : siteName;
   if (window._hmt) {
     const path = to.fullPath;
     window._hmt.push(['_trackPageview', path]);

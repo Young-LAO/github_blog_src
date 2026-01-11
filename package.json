@@ -11,12 +11,12 @@
     "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s -r 0 && git add CHANGELOG.md"
   },
   "dependencies": {
-    "@vue/composition-api": "^0.3.0",
+    "@vue/composition-api": "1.7.2",
     "core-js": "^2.6.5",
     "github-markdown-css": "^3.0.1",
     "graphql-request": "^1.8.2",
     "register-service-worker": "^1.6.2",
-    "vue": "^2.6.10",
+    "vue": "2.6.10",
     "vue-router": "^3.0.3"
   },
   "devDependencies": {
@@ -31,7 +31,7 @@
     "lint-staged": "^8.1.5",
     "sass": "^1.32.0",
     "sass-loader": "^7.1.0",
-    "vue-template-compiler": "^2.6.10"
+    "vue-template-compiler": "2.6.10"
   },
   "gitHooks": {
     "pre-commit": "lint-staged"

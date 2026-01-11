@@ -2,60 +2,121 @@
   <div class="page-search">
     <div class="search flex flex-middle">
       <i class="iconfont icon-search"></i>
-      <input class="flex-item" type="text" placeholder="search" v-model="search" @input="onInput"/>
+      <input
+        class="flex-item"
+        type="text"
+        placeholder="search"
+        v-model="search"
+        @input="handleInput"
+      />
     </div>
+
     <div class="tips" v-if="archives.totalCount">
-      <p v-text="`共 ${archives.totalCount} 条搜索结果`"></p>
+      <p>共 {{ archives.totalCount }} 条搜索结果</p>
     </div>
+
     <ul class="archives">
-      <li class="archive" v-for="archive in archives.list" :key="archive.number">
-        <router-link :to="`/archives/${archive.number}`" v-text="archive.title" :title="archive.title"></router-link>
-        <p v-text="archive.bodyText"></p>
+      <li
+        class="archive"
+        v-for="archive in archives.list"
+        :key="archive.number"
+      >
+        <router-link
+          :to="`/archives/${archive.number}`"
+          :title="archive.title"
+        >
+          {{ archive.title }}
+        </router-link>
+        <p>{{ archive.bodyText }}</p>
       </li>
     </ul>
-    <div class="auxi flex flex-middle flex-center" v-if="archives.none">
+
+    <div
+      class="auxi flex flex-middle flex-center"
+      v-if="archives.none"
+    >
       <i class="iconfont icon-none"></i>
       <span>目前就这么多啦~</span>
     </div>
-    <template v-else>
-      <template v-if="archives.loading">
-        <div class="auxi flex flex-middle flex-center">
-          <i class="iconfont icon-loading"></i>
-          <span>正在加载中</span>
-        </div>
-      </template>
-      <template v-else>
-        <div class="flex flex-middle flex-center" v-if="archives.totalCount">
-          <a class="btn-next flex flex-middle flex-center" href="javascript:;" @click="getData">加载更多</a>
-        </div>
-      </template>
-    </template>
+
+    <div
+      class="auxi flex flex-middle flex-center"
+      v-else-if="archives.loading"
+    >
+      <i class="iconfont icon-loading"></i>
+      <span>正在加载中</span>
+    </div>
+
+    <div
+      class="flex flex-middle flex-center"
+      v-else-if="archives.totalCount"
+    >
+      <a
+        class="btn-next flex flex-middle flex-center"
+        href="javascript:;"
+        @click="getData"
+      >
+        加载更多
+      </a>
+    </div>
   </div>
 </template>
+
 <script>
-import {
-  ref,
-  reactive,
-} from '@vue/composition-api';
 import { debounce } from '../utils/utils';
 
 export default {
-  setup(props, context) {
-    const search = ref('');
-    const archives = reactive({
-      list: [],
-      labels: [],
-      totalCount: 0,
+  name: 'Search',
 
-      cursor: null,
-      loading: false,
-      none: false,
-    });
+  data() {
+    return {
+      search: '',
+      archives: {
+        list: [],
+        totalCount: 0,
+        cursor: null,
+        loading: false,
+        none: false,
+      },
+    };
+  },
 
-    const getData = () => {
-      archives.loading = true;
+  created() {
+    // ✅ 在生命周期里创建 debounce，只创建一次
+    this.onInputDebounced = debounce(this.onInput, 300);
+  },
+
+  methods: {
+    handleInput() {
+      // Vue 事件层，不直接 debounce
+      this.onInputDebounced();
+    },
+
+    onInput() {
+      this.resetData();
+      if (this.search && !this.archives.loading) {
+        this.getData();
+      }
+    },
+
+    resetData() {
+      this.archives.cursor = null;
+      this.archives.loading = false;
+      this.archives.none = false;
+      this.archives.list = [];
+      this.archives.totalCount = 0;
+    },
+
+    getData() {
+      this.archives.loading = true;
+
       const query = `query {
-        search(query: "${search.value} repo:SteveLee123/github_blog_src", type: ISSUE, first: 10, after: ${archives.cursor}) {
+        search(
+          query: "${this.search} repo:SteveLee123/github_blog_src",
+          type: ISSUE,
+          first: 10,
+          after: ${this.archives.cursor}
+        ) {
           issueCount
           pageInfo {
             endCursor
@@ -70,41 +131,26 @@ export default {
           }
         }
       }`;
-      context.root.$http(query).then((res) => {
-        archives.loading = false;
+
+
+      this.$http(query).then((res) => {
         const { nodes, pageInfo, issueCount } = res.search;
+        console.log(res.search);
+
+        this.archives.loading = false;
+        this.archives.list = this.archives.list.concat(nodes);
+        this.archives.totalCount = issueCount;
+        this.archives.cursor = pageInfo.endCursor
+          ? `"${pageInfo.endCursor}"`
+          : null;
+
         if (!pageInfo.hasNextPage) {
-          archives.none = true;
+          this.archives.none = true;
         }
-        archives.cursor = `"${pageInfo.endCursor}"`;
-        archives.list = archives.list.concat(nodes);
-        archives.totalCount = issueCount;
-        document.title = `${search.value}`;
+
+        document.title = this.search;
       });
-    };
-
-    const resetData = () => {
-      archives.cursor = null;
-      archives.loading = false;
-      archives.none = false;
-      archives.list = [];
-      archives.totalCount = 0;
-    };
-
-    const onInput = debounce(() => {
-      resetData();
-      if (search.value && !archives.loading) {
-        getData();
-      }
-    }, 300);
-
-
-    return {
-      getData,
-      onInput,
-      search,
-      archives,
-    };
+    },
   },
 };
 </script>

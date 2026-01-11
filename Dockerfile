@@ -14,4 +14,5 @@ RUN npm install
 COPY . .
 
 EXPOSE 8080
-CMD ["npm", "run", "deploy"]
+
+CMD ["sh", "-c", "npm cache clean --force && npm run deploy && git branch"]
