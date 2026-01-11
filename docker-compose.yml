@@ -1,0 +1,17 @@
+services:
+  blog:
+    platform: linux/amd64
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      # 将 Mac 宿主机的 SSH 代理 Socket 挂载到容器内
+      - ${SSH_AUTH_SOCK}:${SSH_AUTH_SOCK}
+      # 挂载 Git 配置，确保有用户名和邮箱
+      - ~/.gitconfig:/root/.gitconfig:ro
+    environment:
+      - NODE_ENV=development
+      # 告诉容器 SSH 代理的具体位置
+      - SSH_AUTH_SOCK=${SSH_AUTH_SOCK}
