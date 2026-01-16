@@ -32,70 +32,68 @@
         </ul>
       </div>
     </div>
-    <template>
-      <div class="page-archives">
-        <div class="list">
-          <div class="item" v-for="year in archives.years" :key="year.year">
-            </div>
+
+    <div class="list">
+      <div class="item" v-for="year in archives.years" :key="year.year">
+        </div>
+    </div>
+
+    <div class="auxi flex flex-middle flex-center" v-if="archives.loading">
+      <i class="iconfont icon-loading"></i>
+      <span>正在加载中</span>
+    </div>
+
+    <div class="auxi flex flex-middle flex-center" v-if="archives.none && !archives.loading">
+      <i class="iconfont icon-none"></i>
+      <span>目前就这么多啦~</span>
+    </div>
+
+    <div class="pagination-wrapper" style="min-height: 50px;" v-if="!archives.loading">
+      <div class="pagination flex flex-middle flex-center">
+        <a href="javascript:;" class="btn-page" :class="{ disabled: archives.page === 1 }" @click="goFirstPage">首页</a>
+
+        <a
+          href="javascript:;"
+          class="btn-page"
+          :class="{ disabled: archives.page === 1 }"
+          @click="archives.page > 1 && prevPage()"
+        >
+          上一页
+        </a>
+
+        <div class="page-jump flex flex-middle">
+          <span>第</span>
+          <input 
+            type="number" 
+            v-model.number="jumpPage" 
+            @keyup.enter="goToPage"
+            min="1"
+          />
+          <span>/ {{ archives.totalPages }} 页</span>
         </div>
 
-        <div class="auxi flex flex-middle flex-center" v-if="archives.loading">
-          <i class="iconfont icon-loading"></i>
-          <span>正在加载中</span>
-        </div>
+        <a
+          href="javascript:;"
+          class="btn-page"
+          :class="{ disabled: archives.none }"
+          @click="!archives.none && nextPage()"
+        >
+          下一页
+        </a>
 
-        <div class="auxi flex flex-middle flex-center" v-if="archives.none && !archives.loading">
-          <i class="iconfont icon-none"></i>
-          <span>目前就这么多啦~</span>
-        </div>
-
-        <div class="pagination-wrapper" style="min-height: 50px;" v-if="!archives.loading">
-          <div class="pagination flex flex-middle flex-center">
-            <a href="javascript:;" class="btn-page" :class="{ disabled: archives.page === 1 }" @click="goFirstPage">首页</a>
-
-            <a
-              href="javascript:;"
-              class="btn-page"
-              :class="{ disabled: archives.page === 1 }"
-              @click="archives.page > 1 && prevPage()"
-            >
-              上一页
-            </a>
-
-            <div class="page-jump flex flex-middle">
-              <span>第</span>
-              <input 
-                type="number" 
-                v-model.number="jumpPage" 
-                @keyup.enter="goToPage"
-                min="1"
-              />
-              <span>/ {{ archives.totalPages }} 页</span>
-            </div>
-
-            <a
-              href="javascript:;"
-              class="btn-page"
-              :class="{ disabled: archives.none }"
-              @click="!archives.none && nextPage()"
-            >
-              下一页
-            </a>
-
-            <a href="javascript:;" class="btn-page" :class="{ disabled: archives.none }" @click="goLastPage">末页</a>
-            <div 
-              class="secret-trigger" 
-              :class="{ 'is-ready': secret.ready, 'is-loading': secret.loading }"
-              @mouseenter="startSecretTimer"
-              @mouseleave="clearSecretTimer"
-              @click="handleSecretClick"
-            >
-              <i v-if="secret.loading" class="iconfont icon-loading"></i>
-            </div>
-          </div>
+        <a href="javascript:;" class="btn-page" :class="{ disabled: archives.none }" @click="goLastPage">末页</a>
+        <div 
+          class="secret-trigger" 
+          :class="{ 'is-ready': secret.ready, 'is-loading': secret.loading }"
+          @mouseenter="startSecretTimer"
+          @mouseleave="clearSecretTimer"
+          @click="handleSecretClick"
+        >
+          <i v-if="secret.loading" class="iconfont icon-loading"></i>
         </div>
       </div>
-    </template>
+    </div>
+
   </div>
 </template>
 <script>
@@ -105,11 +103,15 @@ import { formatTime, getZodiac, isLightColor } from '../utils/utils';
 export default {
   setup(props, context) {
     const { $route, $router, $http } = context.root;
-    const jumpPage = ref(parseInt($route.query.page) || 1);
 
+    const root = context.root;
+// 使用传统的 && 符号替代 ?. 符号进行安全判断
+    const initialPage = (root && root.$route && root.$route.query && root.$route.query.page) 
+      ? parseInt(root.$route.query.page) : 1;
+    const jumpPage = ref(initialPage);
     const archives = reactive({
       years: [],
-      page: parseInt($route.query.page) || 1,
+      page: initialPage,
       pageSize: 5,
       cursors: [null], 
       loading: false,
@@ -188,7 +190,6 @@ export default {
         }
       }`;
 
-      console.log(query);
 
       // 改回 .then() 模式，避开 async/await 带来的编译难题
       context.root.$http(query)

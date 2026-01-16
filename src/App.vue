@@ -105,10 +105,15 @@ export default {
     window.addEventListener('scroll', handleScroll);
 
 
-    watch('$route', (to) => {
-      const path = navs.find(_ => ~to.path.indexOf(_.path));
-      global.name = path ? path.name : '';
-    }, { lazy: true });
+    watch(
+      () => (context.root ? context.root.$route : null), // 增加 root 存在性检查      
+      (to) => {
+        if (!to) return; // 如果 to 为空则不执行逻辑
+        const path = navs.find(_ => ~to.path.indexOf(_.path));
+        global.name = path ? path.name : '';
+      },
+      { immediate: true }
+    );
 
     onBeforeUnmount(() => {
       window.removeEventListener('resize', handleResize);

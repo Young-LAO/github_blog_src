@@ -57,6 +57,8 @@ export default {
       const utterances = document.createElement('script');
       utterances.type = 'text/javascript';
       utterances.async = true;
+    // 关键修改：使用 parseInt 确保 id 是数字
+      utterances.setAttribute('issue-number', parseInt(id, 10));
       utterances.setAttribute('issue-number', id);
       utterances.setAttribute('theme', 'github-light');
       utterances.setAttribute('repo', 'Young-LAO/github_blog_src');
