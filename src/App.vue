@@ -136,24 +136,12 @@ export default {
       }
     };
 
-    let timer = null;
 
     const backTop = () => {
-      if (!timer) {
-        timer = setInterval(() => {
-          const top = document.body.scrollTop || document.documentElement.scrollTop;
-          const speed = top / 4;
-          if (document.body.scrollTop !== 0) {
-            document.body.scrollTop -= speed;
-          } else {
-            document.documentElement.scrollTop -= speed;
-          }
-          if (top === 0) {
-            clearInterval(timer);
-            timer = null;
-          }
-        }, 30);
-      }
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth' // 原生平滑滚动，不依赖定时器，不会与用户操作冲突
+      });
     };
 
     return {

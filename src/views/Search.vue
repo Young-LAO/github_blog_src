@@ -1,14 +1,17 @@
 <template>
   <div class="page-search">
-    <div class="search flex flex-middle">
-      <i class="iconfont icon-search"></i>
-      <input
-        class="flex-item"
-        type="text"
-        placeholder="search"
-        v-model="search"
-        @input="handleInput"
-      />
+    <div class="header-bar flex flex-middle">
+      <div class="search flex flex-middle">
+        <i class="iconfont icon-search"></i>
+        <input
+          class="flex-item"
+          type="text"
+          placeholder="search"
+          v-model="search"
+          @input="handleInput"
+        />
+      </div>
+      
     </div>
 
     <div class="tips" v-if="archives.totalCount">
@@ -51,7 +54,7 @@
           </div>
         </div>
 
-        <p class="body-text" v-html="highlight(archive.bodyText)"></p>
+        <p class="body-text" v-html="getSnippetAndHighlight(archive.bodyText)"></p>        
       </li>
     </ul>
 
@@ -75,13 +78,14 @@
 
 <script>
 import { debounce, formatTime, isLightColor } from '../utils/utils';
-
+import { Segment, useDefault } from 'segmentit';
 export default {
   name: 'Search',
 
   data() {
     return {
       search: '',
+      segmentit: null,
       archives: {
         list: [],
         totalCount: 0,
@@ -94,6 +98,9 @@ export default {
   created() {
     document.title = `搜索 - LAO Blog`;
     this.onInputDebounced = debounce(this.onInput, 300);
+    this.segmentit = new Segment();
+    this.segmentit.use(useDefault);
+    
   },
 
   methods: {
@@ -107,7 +114,42 @@ export default {
       const highlightReg = new RegExp(`(${this.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
       return text.replace(highlightReg, '<span class="highlight">$1</span>');
     },
+    // --- 【新增方法】智能截取正文片段并高亮 ---
+    getSnippetAndHighlight(text) {
+      if (!text) return '';
+      if (!this.search) return text.slice(0, 120); // 没有搜索词时，默认显示前120字
 
+      const lowerText = text.toLowerCase();
+      const lowerSearch = this.search.toLowerCase();
+      const index = lowerText.indexOf(lowerSearch);
+
+      // 情况1：关键词不在正文中（可能只在标题里匹配到了），显示文章开头
+      if (index === -1) {
+        return this.highlight(text.slice(0, 120) + (text.length > 120 ? '...' : ''));
+      }
+
+      // 情况2：关键词在正文中，需要截取上下文
+      // 设定截取长度，比如关键词前后各留 30-50 个字符
+      const beforeCount = 30;
+      const afterCount = 90;
+      
+      let start = index - beforeCount;
+      let end = index + this.search.length + afterCount;
+
+      // 边界处理
+      if (start < 0) start = 0;
+      if (end > text.length) end = text.length;
+
+      let snippet = text.slice(start, end);
+
+      // 如果不是从头开始截取，前面加省略号
+      if (start > 0) snippet = '...' + snippet;
+      // 如果没有截取到最后，后面加省略号
+      if (end < text.length) snippet = snippet + '...';
+
+      // 对截取后的片段进行高亮处理
+      return this.highlight(snippet);
+    },
     handleInput() {
       this.onInputDebounced();
     },
@@ -130,10 +172,13 @@ export default {
     getData() {
       if (this.archives.loading) return;
       this.archives.loading = true;
-
+      const safeSearch = this.search.replace(/"/g, '\\"'); 
+      // 修改点A：不再根据 checkbox 决定是否加引号，直接传给 GitHub
+      // 我们希望 GitHub 返回尽可能多的结果，由前端来通过分词精准过滤
+      const queryKeyword = safeSearch;
       const query = `query {
         search(
-          query: "${this.search} repo:Young-LAO/github_blog_src",
+          query: "${queryKeyword} repo:Young-LAO/github_blog_src",
           type: ISSUE,
           first: 10,
           after: ${this.archives.cursor}
@@ -160,19 +205,46 @@ export default {
           }
         }
       }`;
+      console.log('Executing search query:', query);
 
       this.$http(query).then((res) => {
         const { nodes, pageInfo, issueCount } = res.search;
+        console.log(res.search);
+
 
         this.archives.loading = false;
-        const formattedNodes = nodes.map(node => ({
+        let formattedNodes = nodes.map(node => ({
           ...node,
           labels: node.labels ? node.labels.nodes : []
         }));
+        // --- 修改点B：引入分词智能过滤 ---
+        if (this.search) {
+          const lowerSearch = this.search.toLowerCase();
+          
+          // 1. 使用 segmentit 进行分词，simple: true 返回纯字符串数组
+          const segments = this.segmentit.doSegment(lowerSearch, { simple: true });
+          
+          // 2. 过滤：要求文章内容必须包含 分词结果中的每一个词 (AND关系)
+          formattedNodes = formattedNodes.filter(node => {
+            const title = (node.title || '').toLowerCase();
+            const body = (node.bodyText || '').toLowerCase();
+            const content = title + body;
+            
+            // 检查 content 是否包含 segments 里的每一个词
+            return segments.every(word => content.includes(word));
+          });
+        }
+
 
         this.archives.list = this.archives.list.concat(formattedNodes);
         this.archives.totalCount = issueCount;
         this.archives.cursor = pageInfo.endCursor ? `"${pageInfo.endCursor}"` : null;
+
+        // 修改点C：如果当前页过滤完了（没显示任何东西），但 API 还有下一页，自动加载下一页
+        if (formattedNodes.length === 0 && pageInfo.hasNextPage) {
+          this.getData();
+          return;
+        }
 
         if (!pageInfo.hasNextPage) {
           this.archives.none = true;
@@ -210,6 +282,11 @@ export default {
   }
 
   .page-search {
+    /* 修改点 5: 调整头部布局样式 */
+    .header-bar {
+      margin-bottom: 16px; /* 给下方留点空隙 */
+      
+    }
     .search {
       position: relative;
       max-width: 400px;

@@ -1,10 +1,22 @@
 <template>
   <div class="page-details">
+    <div 
+      class="custom-tooltip" 
+      v-show="tooltip.visible" 
+      :style="{ top: tooltip.top + 'px', left: tooltip.left + 'px' }"
+    >
+      {{ tooltip.text }}
+    </div>
     <div v-if="toc.length > 0" class="toc-container pc-only">
-      <div class="toc-title">文章目录</div>
       <ul class="toc-list">
         <li v-for="(item, index) in toc" :key="index" :class="'toc-depth-' + item.level">
-          <a @click.prevent="scrollToAnchor(item.id)" href="javascript:;" :title="item.text">{{ item.text }}</a>
+          <a 
+            @click.prevent="scrollToAnchor(item.id)" 
+            href="javascript:;" 
+            @mouseenter="showTooltip($event, item.text)"
+            @mousemove="moveTooltip($event)"
+            @mouseleave="hideTooltip"
+            >{{ item.text }}</a>
         </li>
       </ul>
     </div>
@@ -121,8 +133,45 @@ export default {
       getData();
       initComment();
     });
+    // --- 新增：自定义 Tooltip 逻辑 ---
+    const tooltip = reactive({
+      visible: false,
+      text: '',
+      top: 0,
+      left: 0
+    });
 
-    return { isLightColor, issue, toc, scrollToAnchor, showMobileToc };
+    const showTooltip = (e, text) => {
+      tooltip.text = text;
+      tooltip.visible = true;
+      // 初始位置设置在鼠标右下方一点，防止遮挡
+      tooltip.top = e.clientY + 10;
+      tooltip.left = e.clientX + 10;
+    };
+
+    const moveTooltip = (e) => {
+      // 让提示框跟随鼠标移动 (可选，如果不需要跟随可去掉此函数)
+      if (tooltip.visible) {
+        tooltip.top = e.clientY + 10;
+        tooltip.left = e.clientX + 10;
+      }
+    };
+
+    const hideTooltip = () => {
+      tooltip.visible = false;
+    };
+    // --------------------------------
+
+    return { 
+      isLightColor, 
+      issue, 
+      toc, 
+      scrollToAnchor, 
+      showMobileToc, 
+      tooltip,
+      showTooltip,
+      hideTooltip,
+      moveTooltip };
   },
 };
 </script>
@@ -157,7 +206,7 @@ export default {
 
   .toc-container {
     position: fixed; /* 固定在左侧 */
-    top: 170px;
+    top: 190px;
     left: 20px; 
     width: 180px;
     max-height: 70vh;
@@ -242,5 +291,21 @@ export default {
 /* 这里的样式会作用于全局，但只在详情页加载时生效 */
 .pc-mode .main-wrap:before {
   background-color: transparent !important; /* 或是 display: none */
+}
+/* 自定义 Tooltip 样式 */
+.custom-tooltip {
+  position: fixed; /* 使用 fixed 定位，基于视窗 */
+  z-index: 9999;   /* 确保在最上层 */
+  background-color: rgba(0, 0, 0, 0.85); /* 深色背景 */
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  pointer-events: none; /* 关键：让鼠标事件穿透提示框，防止闪烁 */
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  
+  /* 可选：添加一点点过渡动画让出现更丝滑，但不要太慢 */
+  transition: opacity 0.1s; 
 }
 </style>
